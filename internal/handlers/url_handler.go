@@ -43,3 +43,37 @@ func (h *UrlHandler) CreateShortUrl(c *gin.Context) {
 
 	c.JSON(http.StatusOK, url)
 }
+
+// Redirect handles GET /:code
+func (h *UrlHandler) Redirect(c *gin.Context) {
+	code := c.Param("code")
+
+	// Grab Analytics Data from Request Headers
+	referrer := c.Request.Referer()
+	userAgent := c.Request.UserAgent()
+	ip := c.ClientIP()
+
+	originalUrl, err := h.Service.Resolve(code, referrer, userAgent, ip)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "URL not found"})
+		return
+	}
+
+	c.Redirect(http.StatusFound, originalUrl)
+}
+
+// GetStats handles GET /api/stats/:code
+func (h *UrlHandler) GetStats(c *gin.Context) {
+	code := c.Param("code")
+
+	url, clicks, err := h.Service.GetUrlStats(code)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "URL not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"url_data":  url,
+		"analytics": clicks,
+	})
+}

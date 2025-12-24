@@ -25,7 +25,7 @@ func TestSaveAndGetClickStats(t *testing.T) {
 	urlRepo := NewUrlRepository(db)
 	clickRepo := NewClickRepository(db)
 
-	// We can't save a click for a URL that doesn't exist (Foreign Key Constraint) so creating a parent url
+	// Can't save a click for a URL that doesn't exist so creating a parent url
 	parentUrl := &models.Url{OriginalURL: "https://analytics-test.com", ShortCode: "stats1"}
 
 	// Clean up any old data to avoid unique constraint error
@@ -63,6 +63,6 @@ func TestSaveAndGetClickStats(t *testing.T) {
 	}
 
 	// Cleanup database after test
-	db.Unscoped().Delete(click)     // Delete click first
-	db.Unscoped().Delete(parentUrl) // Delete parent URL second
+	db.Unscoped().Delete(click)
+	db.Unscoped().Delete(parentUrl)
 }

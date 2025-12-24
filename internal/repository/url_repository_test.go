@@ -12,6 +12,7 @@ import (
 
 func TestCreateUrl(t *testing.T) {
 
+	// Setup DB
 	_ = godotenv.Load("../../.env")
 
 	dsn := fmt.Sprintf(
@@ -24,10 +25,23 @@ func TestCreateUrl(t *testing.T) {
 	)
 
 	db := database.InitDB(dsn)
-
 	repo := NewUrlRepository(db)
 
-	url := &models.Url{OriginalURL: "https://test.com", ShortCode: "test1"}
+	// Create a Dummy User
+	userRepo := NewUserRepository(db)
+	owner := &models.User{Email: "url_test_owner@example.com", Password: "pw"}
+
+	// Cleanup old data
+	db.Unscoped().Where("email = ?", owner.Email).Delete(&models.User{})
+	_ = userRepo.Create(owner)
+
+	db.Unscoped().Where("short_code = ?", "test1").Delete(&models.Url{})
+
+	url := &models.Url{
+		OriginalURL: "https://test.com",
+		ShortCode:   "test1",
+		UserID:      owner.ID,
+	}
 	err := repo.Create(url)
 
 	if err != nil {
@@ -38,11 +52,13 @@ func TestCreateUrl(t *testing.T) {
 	}
 
 	// Cleanup database after test
-	db.Delete(&models.Url{}, url.ID)
+	db.Unscoped().Delete(url)
+	db.Unscoped().Delete(owner)
+	// db.Delete(&models.Url{}, url.ID)
 
 }
 
-// Helper function to get env var with a default value
+// Helper function to get env variable with a default value
 func getEnv(key, fallback string) string {
 	if value, exists := os.LookupEnv(key); exists {
 		return value

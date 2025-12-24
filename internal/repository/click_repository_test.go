@@ -25,13 +25,25 @@ func TestSaveAndGetClickStats(t *testing.T) {
 	urlRepo := NewUrlRepository(db)
 	clickRepo := NewClickRepository(db)
 
+	// Create Dummy User
+	userRepo := NewUserRepository(db)
+	owner := &models.User{Email: "click_test_owner@example.com", Password: "pw"}
+
+	// Cleanup old data
+	db.Unscoped().Where("email = ?", owner.Email).Delete(&models.User{})
+	_ = userRepo.Create(owner)
+
 	// Can't save a click for a URL that doesn't exist so creating a parent url
-	parentUrl := &models.Url{OriginalURL: "https://analytics-test.com", ShortCode: "stats1"}
+	parentUrl := &models.Url{
+		OriginalURL: "https://analytics-test.com",
+		ShortCode:   "stats1",
+		UserID:      owner.ID,
+	}
 
 	// Clean up any old data to avoid unique constraint error
 	db.Unscoped().Where("short_code = ?", "stats1").Delete(&models.Url{})
-
 	err := urlRepo.Create(parentUrl)
+
 	if err != nil {
 		t.Fatalf("Failed to create parent URL: %v", err)
 	}
@@ -51,6 +63,7 @@ func TestSaveAndGetClickStats(t *testing.T) {
 
 	// Test: Retrieve Stats
 	stats, err := clickRepo.GetStatsByUrlID(parentUrl.ID)
+
 	if err != nil {
 		t.Errorf("Failed to get stats: %v", err)
 	}
@@ -58,11 +71,13 @@ func TestSaveAndGetClickStats(t *testing.T) {
 	if len(stats) != 1 {
 		t.Errorf("Expected 1 click log, got %d", len(stats))
 	}
+
 	if stats[0].Referrer != "google.com" {
 		t.Errorf("Expected referrer google.com, got %s", stats[0].Referrer)
 	}
 
-	// Cleanup database after test
+	// Cleanup
 	db.Unscoped().Delete(click)
 	db.Unscoped().Delete(parentUrl)
+	db.Unscoped().Delete(owner)
 }

@@ -9,7 +9,10 @@ import (
 	"github.com/navaneethk-000/url-shortener-backend/internal/database"
 	"github.com/navaneethk-000/url-shortener-backend/internal/models"
 	"github.com/navaneethk-000/url-shortener-backend/internal/repository"
+	"gorm.io/gorm"
 )
+
+var testDB *gorm.DB
 
 func setupService() *UrlService {
 
@@ -23,8 +26,8 @@ func setupService() *UrlService {
 		getEnv("DB_NAME", "shortener_db"),
 		getEnv("DB_PORT", "5432"),
 	)
-	db := database.InitDB(dsn)
-	return NewUrlService(repository.NewUrlRepository(db), repository.NewClickRepository(db))
+	testDB = database.InitDB(dsn)
+	return NewUrlService(repository.NewUrlRepository(testDB), repository.NewClickRepository(testDB))
 }
 
 func getEnv(key, fallback string) string {
@@ -34,14 +37,27 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
+func createDummyUser() *models.User {
+	userRepo := repository.NewUserRepository(testDB)
+	user := &models.User{
+		Email:    "service_test_user@example.com",
+		Password: "hashedpassword",
+	}
+	// Clean up if exists
+	testDB.Unscoped().Where("email = ?", user.Email).Delete(&models.User{})
+	_ = userRepo.Create(user)
+	return user
+}
+
 func TestShorten_ShouldGenerateId_IfAliasMissing(t *testing.T) {
 	service := setupService()
+	user := createDummyUser()
 
 	// Clean up old data
 	service.UrlRepo.DB.Unscoped().Where("original_url = ?", "https://service-test.com").Delete(&models.Url{})
 
 	// Shorten a Url without alias
-	url, err := service.Shorten("https://service-test.com", "")
+	url, err := service.Shorten("https://service-test.com", "", user.ID)
 
 	if err != nil {
 		t.Fatalf("Service failed: %v", err)
@@ -59,19 +75,20 @@ func TestShorten_ShouldGenerateId_IfAliasMissing(t *testing.T) {
 func TestShorten_ShouldFail_IfAliasTaken(t *testing.T) {
 
 	service := setupService()
+	user := createDummyUser()
 	alias := "custom1"
 
 	// Pre-cleanup
 	service.UrlRepo.DB.Unscoped().Where("short_code = ?", alias).Delete(&models.Url{})
 
 	// Create first time
-	u1, err := service.Shorten("https://a.com", alias)
+	u1, err := service.Shorten("https://a.com", alias, user.ID)
 	if err != nil {
 		t.Fatalf("First create failed: %v", err)
 	}
 
 	// Create second time which should fail
-	_, err = service.Shorten("https://b.com", alias)
+	_, err = service.Shorten("https://b.com", alias, user.ID)
 
 	if err == nil {
 		t.Error("Expected error for duplicate alias, got nil")
@@ -82,4 +99,5 @@ func TestShorten_ShouldFail_IfAliasTaken(t *testing.T) {
 
 	// Cleanup after test
 	service.UrlRepo.DB.Unscoped().Delete(u1)
+	service.UrlRepo.DB.Unscoped().Delete(user)
 }

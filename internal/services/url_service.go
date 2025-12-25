@@ -23,7 +23,7 @@ func NewUrlService(uRepo *repository.UrlRepository, cRepo *repository.ClickRepos
 }
 
 // Creates a new short link
-func (s *UrlService) Shorten(originalURL, customAlias string) (*models.Url, error) {
+func (s *UrlService) Shorten(originalURL, customAlias string, userID uint64) (*models.Url, error) {
 	// Custom Alias Logic
 	if customAlias != "" {
 		existing, _ := s.UrlRepo.FindByShortCode(customAlias)
@@ -33,6 +33,7 @@ func (s *UrlService) Shorten(originalURL, customAlias string) (*models.Url, erro
 		newUrl := &models.Url{
 			OriginalURL: originalURL,
 			ShortCode:   customAlias,
+			UserID:      userID,
 			CreatedAt:   time.Now(),
 		}
 		return newUrl, s.UrlRepo.Create(newUrl)
@@ -41,6 +42,7 @@ func (s *UrlService) Shorten(originalURL, customAlias string) (*models.Url, erro
 	// Base62 Logic
 	newUrl := &models.Url{
 		OriginalURL: originalURL,
+		UserID:      userID,
 		CreatedAt:   time.Now(),
 	}
 	// Save first to generate ID

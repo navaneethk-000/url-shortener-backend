@@ -33,15 +33,23 @@ func main() {
 	// Repo Layer
 	urlRepo := repository.NewUrlRepository(db)
 	clickRepo := repository.NewClickRepository(db)
+	userRepo := repository.NewUserRepository(db)
 
 	// Service Layer (Injects Repos)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("JWT_SECRET is not set in .env")
+	}
+
 	urlService := services.NewUrlService(urlRepo, clickRepo)
+	authService := services.NewAuthService(userRepo, jwtSecret)
 
 	// Handler Layer (Injects Service)
 	urlHandler := handlers.NewUrlHandler(urlService)
+	authHandler := handlers.NewAuthHandler(authService)
 
 	// Setup Router
-	router := routes.SetupRouter(urlHandler)
+	router := routes.SetupRouter(urlHandler, authHandler)
 
 	// Start Server
 	port := os.Getenv("PORT")

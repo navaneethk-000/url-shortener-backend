@@ -6,20 +6,26 @@ import (
 	"github.com/navaneethk-000/url-shortener-backend/internal/middleware"
 )
 
-func SetupRouter(urlHandler *handlers.UrlHandler) *gin.Engine {
+func SetupRouter(urlHandler *handlers.UrlHandler, authHandler *handlers.AuthHandler) *gin.Engine {
 	r := gin.Default()
-
-	// Apply Middleware
 	r.Use(middleware.Cors())
 
-	// API Group
 	api := r.Group("/api")
 	{
-		api.POST("/shorten", urlHandler.CreateShortUrl)
+		// Public Routes
+		api.POST("/register", authHandler.Register)
+		api.POST("/login", authHandler.Login)
 		api.GET("/stats/:code", urlHandler.GetStats)
+
+		// Protected Routes
+		protected := api.Group("/")
+		protected.Use(middleware.AuthMiddleware())
+		{
+			protected.POST("/shorten", urlHandler.CreateShortUrl)
+		}
+
 	}
 
-	// Root Redirect
 	r.GET("/:code", urlHandler.Redirect)
 
 	return r

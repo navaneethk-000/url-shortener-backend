@@ -30,8 +30,15 @@ func (h *UrlHandler) CreateShortUrl(c *gin.Context) {
 		return
 	}
 
+	// Get UserID from Context
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
 	// Call Service
-	url, err := h.Service.Shorten(req.OriginalURL, req.CustomAlias)
+	url, err := h.Service.Shorten(req.OriginalURL, req.CustomAlias, userID.(uint64))
 	if err != nil {
 		if err.Error() == "alias already in use" {
 			c.JSON(http.StatusConflict, gin.H{"error": "Alias already taken"})
@@ -48,7 +55,7 @@ func (h *UrlHandler) CreateShortUrl(c *gin.Context) {
 func (h *UrlHandler) Redirect(c *gin.Context) {
 	code := c.Param("code")
 
-	// Grab Analytics Data from Request Headers
+	// Grab analytics data from request headers
 	referrer := c.Request.Referer()
 	userAgent := c.Request.UserAgent()
 	ip := c.ClientIP()

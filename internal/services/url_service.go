@@ -2,16 +2,45 @@ package services
 
 import (
 	"errors"
+	"fmt"
+	"os"
 	"time"
 
 	"github.com/navaneethk-000/url-shortener-backend/internal/base62"
 	"github.com/navaneethk-000/url-shortener-backend/internal/models"
 	"github.com/navaneethk-000/url-shortener-backend/internal/repository"
+	"github.com/skip2/go-qrcode"
 )
 
 type UrlService struct {
 	UrlRepo   *repository.UrlRepository
 	ClickRepo *repository.ClickRepository
+}
+
+func (s *UrlService) GenerateQRCode(shortCode string) ([]byte, error) {
+	// Check if URL exists
+	url, err := s.UrlRepo.FindByShortCode(shortCode)
+	if err != nil {
+		return nil, err
+	}
+	if url == nil {
+		return nil, errors.New("URL not found")
+	}
+
+	// Create the full URL
+	baseUrl := os.Getenv("BASE_URL")
+	if baseUrl == "" {
+		baseUrl = "http://localhost:8080"
+	}
+	fullURL := fmt.Sprintf("%s/%s", baseUrl, shortCode)
+
+	// Generate QR code (256x256 pixels, Medium error correction)
+	png, err := qrcode.Encode(fullURL, qrcode.Medium, 256)
+	if err != nil {
+		return nil, err
+	}
+
+	return png, nil
 }
 
 // Factory

@@ -6,6 +6,7 @@ type IUrlService interface {
 	Shorten(originalURL, customAlias string, userID uint64) (*models.Url, error)
 	Resolve(shortCode, referrer, userAgent, ip string) (string, error)
 	GetUrlStats(shortCode string) (*models.Url, []models.Click, error)
+	GenerateQRCode(shortCode string) ([]byte, error)
 }
 
 type IAuthService interface {

@@ -16,6 +16,7 @@ func SetupRouter(urlHandler *handlers.UrlHandler, authHandler *handlers.AuthHand
 		api.POST("/register", authHandler.Register)
 		api.POST("/login", authHandler.Login)
 		api.GET("/stats/:code", urlHandler.GetStats)
+		api.GET("/qr/:code", urlHandler.GetQRCode)
 
 		// Protected Routes
 		protected := api.Group("/")

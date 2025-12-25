@@ -21,6 +21,18 @@ type CreateUrlRequest struct {
 	CustomAlias string `json:"custom_alias"`
 }
 
+func (h *UrlHandler) GetQRCode(c *gin.Context) {
+	code := c.Param("code")
+
+	pngBytes, err := h.Service.GenerateQRCode(code)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "URL not found"})
+		return
+	}
+
+	c.Data(http.StatusOK, "image/png", pngBytes)
+}
+
 func (h *UrlHandler) CreateShortUrl(c *gin.Context) {
 	var req CreateUrlRequest
 

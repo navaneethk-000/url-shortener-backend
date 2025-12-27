@@ -23,6 +23,7 @@ func SetupRouter(urlHandler *handlers.UrlHandler, authHandler *handlers.AuthHand
 		protected.Use(middleware.AuthMiddleware())
 		{
 			protected.POST("/shorten", urlHandler.CreateShortUrl)
+			protected.GET("/user/urls", urlHandler.GetUserUrls)
 		}
 
 	}

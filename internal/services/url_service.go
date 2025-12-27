@@ -17,6 +17,13 @@ type UrlService struct {
 	ClickRepo *repository.ClickRepository
 }
 
+// Fetch all URLs created by a specific user
+func (s *UrlService) GetUserUrls(userID uint64) ([]models.Url, error) {
+	var urls []models.Url
+	result := s.UrlRepo.DB.Where("user_id = ?", userID).Order("created_at desc").Find(&urls)
+	return urls, result.Error
+}
+
 func (s *UrlService) GenerateQRCode(shortCode string) ([]byte, error) {
 	// Check if URL exists
 	url, err := s.UrlRepo.FindByShortCode(shortCode)

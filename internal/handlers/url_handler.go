@@ -21,6 +21,16 @@ type CreateUrlRequest struct {
 	CustomAlias string `json:"custom_alias"`
 }
 
+func (h *UrlHandler) GetUserUrls(c *gin.Context) {
+	userID, _ := c.Get("userID") // From Middleware
+	urls, err := h.Service.GetUserUrls(userID.(uint64))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch URLs"})
+		return
+	}
+	c.JSON(http.StatusOK, urls)
+}
+
 func (h *UrlHandler) GetQRCode(c *gin.Context) {
 	code := c.Param("code")
 

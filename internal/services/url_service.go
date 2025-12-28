@@ -17,6 +17,25 @@ type UrlService struct {
 	ClickRepo *repository.ClickRepository
 }
 
+func (s *UrlService) DeleteShortLink(shortCode string, userID uint64) error {
+	// Find the URL
+	url, err := s.UrlRepo.FindByShortCode(shortCode)
+	if err != nil {
+		return err
+	}
+	if url == nil {
+		return errors.New("URL not found")
+	}
+
+	// Security Check
+	if url.UserID != userID {
+		return errors.New("unauthorized: you do not own this link")
+	}
+
+	// Delete
+	return s.UrlRepo.Delete(url.ID)
+}
+
 // Fetch all URLs created by a specific user
 func (s *UrlService) GetUserUrls(userID uint64) ([]models.Url, error) {
 	var urls []models.Url

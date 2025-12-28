@@ -21,6 +21,31 @@ type CreateUrlRequest struct {
 	CustomAlias string `json:"custom_alias"`
 }
 
+// Delete /api/shorten/:code
+func (h *UrlHandler) DeleteShortUrl(c *gin.Context) {
+	code := c.Param("code")
+
+	// Get UserID from middleware
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// Call Service
+	err := h.Service.DeleteShortLink(code, userID.(uint64))
+	if err != nil {
+		if err.Error() == "unauthorized: you do not own this link" {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Deleted successfully"})
+}
+
 func (h *UrlHandler) GetUserUrls(c *gin.Context) {
 	userID, _ := c.Get("userID") // From Middleware
 	urls, err := h.Service.GetUserUrls(userID.(uint64))
@@ -52,7 +77,7 @@ func (h *UrlHandler) CreateShortUrl(c *gin.Context) {
 		return
 	}
 
-	// Get UserID from Context
+	// Get UserID from middleware
 	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})

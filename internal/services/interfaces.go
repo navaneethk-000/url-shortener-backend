@@ -8,6 +8,7 @@ type IUrlService interface {
 	GetUrlStats(shortCode string) (*models.Url, []models.Click, error)
 	GenerateQRCode(shortCode string) ([]byte, error)
 	GetUserUrls(userID uint64) ([]models.Url, error)
+	DeleteShortLink(shortCode string, userID uint64) error
 }
 
 type IAuthService interface {

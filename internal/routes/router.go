@@ -24,6 +24,7 @@ func SetupRouter(urlHandler *handlers.UrlHandler, authHandler *handlers.AuthHand
 		{
 			protected.POST("/shorten", urlHandler.CreateShortUrl)
 			protected.GET("/user/urls", urlHandler.GetUserUrls)
+			protected.DELETE("/shorten/:code", urlHandler.DeleteShortUrl)
 		}
 
 	}

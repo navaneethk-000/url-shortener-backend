@@ -34,6 +34,7 @@ func setupAuthService() (*AuthService, *gorm.DB) {
 
 func TestRegister(t *testing.T) {
 	service, db := setupAuthService()
+	name := "Test User"
 	email := "register_test@example.com"
 	password := "password123"
 
@@ -41,11 +42,12 @@ func TestRegister(t *testing.T) {
 	db.Unscoped().Where("email = ?", email).Delete(&models.User{})
 
 	t.Run("Success - Registers New User", func(t *testing.T) {
-		user, err := service.Register(email, password)
+		user, err := service.Register(name, email, password)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, user)
 		assert.Equal(t, email, user.Email)
+		assert.Equal(t, name, user.Name)
 		assert.NotEqual(t, password, user.Password, "Password should be hashed")
 
 		// Verify Hash
@@ -55,7 +57,7 @@ func TestRegister(t *testing.T) {
 
 	t.Run("Fail - Duplicate Email", func(t *testing.T) {
 		// Try to register same email again
-		user, err := service.Register(email, "newpassword")
+		user, err := service.Register(name, email, "newpassword")
 
 		assert.Error(t, err)
 		assert.Nil(t, user)
@@ -73,7 +75,8 @@ func TestLogin(t *testing.T) {
 
 	// Create the user first
 	db.Unscoped().Where("email = ?", email).Delete(&models.User{})
-	_, err := service.Register(email, password)
+
+	_, err := service.Register("Login User", email, password)
 	assert.NoError(t, err)
 
 	t.Run("Success - Login with Correct Credentials", func(t *testing.T) {

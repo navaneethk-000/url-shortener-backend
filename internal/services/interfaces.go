@@ -12,6 +12,6 @@ type IUrlService interface {
 }
 
 type IAuthService interface {
-	Register(email, password string) (*models.User, error)
+	Register(name, email, password string) (*models.User, error)
 	Login(email, password string) (string, error)
 }

@@ -23,7 +23,7 @@ func NewAuthService(repo *repository.UserRepository, secret string) *AuthService
 }
 
 // Register creates a user with a hashed password
-func (s *AuthService) Register(email, password string) (*models.User, error) {
+func (s *AuthService) Register(name, email, password string) (*models.User, error) {
 	// Check if user exists
 	existing, _ := s.UserRepo.FindByEmail(email)
 	if existing != nil {
@@ -38,6 +38,7 @@ func (s *AuthService) Register(email, password string) (*models.User, error) {
 
 	// Save user
 	user := &models.User{
+		Name:     name,
 		Email:    email,
 		Password: string(hashed),
 	}
@@ -67,6 +68,7 @@ func (s *AuthService) Login(email, password string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id": user.ID,
 		"email":   user.Email,
+		"name":    user.Name,
 		"exp":     time.Now().Add(time.Hour * 24).Unix(),
 	})
 

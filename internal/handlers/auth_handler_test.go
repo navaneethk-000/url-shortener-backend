@@ -14,12 +14,12 @@ import (
 
 // This mocks IAuthService so we can test the Handler without a DB.
 type mockAuthService struct {
-	RegisterFunc func(email, password string) (*models.User, error)
+	RegisterFunc func(name, email, password string) (*models.User, error)
 	LoginFunc    func(email, password string) (string, error)
 }
 
-func (m *mockAuthService) Register(email, password string) (*models.User, error) {
-	return m.RegisterFunc(email, password)
+func (m *mockAuthService) Register(name, email, password string) (*models.User, error) {
+	return m.RegisterFunc(name, email, password)
 }
 
 func (m *mockAuthService) Login(email, password string) (string, error) {
@@ -38,11 +38,11 @@ func TestRegister(t *testing.T) {
 	}{
 		{
 			name:        "Success - User Created",
-			requestBody: `{"email": "new@test.com", "password": "password123"}`,
+			requestBody: `{"name": "John", "email": "new@test.com", "password": "password123"}`,
 			setupMock: func() *mockAuthService {
 				return &mockAuthService{
-					RegisterFunc: func(email, password string) (*models.User, error) {
-						return &models.User{ID: 1, Email: email}, nil
+					RegisterFunc: func(name, email, password string) (*models.User, error) {
+						return &models.User{ID: 1, Email: email, Name: name}, nil
 					},
 				}
 			},
@@ -50,15 +50,15 @@ func TestRegister(t *testing.T) {
 		},
 		{
 			name:        "Fail - Invalid Email Format",
-			requestBody: `{"email": "not-an-email", "password": "password123"}`,
+			requestBody: `{"name": "John", "email": "not-an-email", "password": "password123"}`,
 			setupMock: func() *mockAuthService {
-				return &mockAuthService{} // Should not be called
+				return &mockAuthService{}
 			},
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name:        "Fail - Password Too Short",
-			requestBody: `{"email": "valid@test.com", "password": "123"}`, // Min 6 chars required
+			requestBody: `{"name": "John", "email": "valid@test.com", "password": "123"}`, // Min 6 chars required
 			setupMock: func() *mockAuthService {
 				return &mockAuthService{}
 			},
@@ -66,10 +66,10 @@ func TestRegister(t *testing.T) {
 		},
 		{
 			name:        "Fail - Email Already Exists",
-			requestBody: `{"email": "existing@test.com", "password": "password123"}`,
+			requestBody: `{"name": "John", "email": "existing@test.com", "password": "password123"}`,
 			setupMock: func() *mockAuthService {
 				return &mockAuthService{
-					RegisterFunc: func(email, password string) (*models.User, error) {
+					RegisterFunc: func(name, email, password string) (*models.User, error) {
 						return nil, errors.New("email already in use")
 					},
 				}
@@ -90,13 +90,11 @@ func TestRegister(t *testing.T) {
 			handler := NewAuthHandler(tt.setupMock())
 			handler.Register(c)
 
-			// Assert
 			assert.Equal(t, tt.expectedStatus, rec.Code)
 		})
 	}
 }
 
-// Login
 func TestLogin(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

@@ -17,6 +17,7 @@ func NewAuthHandler(s services.IAuthService) *AuthHandler {
 
 // Register request
 type RegisterRequest struct {
+	Name     string `json:"name" binding:"required"`
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required,min=6"`
 }
@@ -28,13 +29,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	user, err := h.Service.Register(req.Email, req.Password)
+	user, err := h.Service.Register(req.Name, req.Email, req.Password)
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"email": user.Email, "id": user.ID})
+	c.JSON(http.StatusCreated, gin.H{"email": user.Email, "id": user.ID, "name": user.Name})
 }
 
 // Login request

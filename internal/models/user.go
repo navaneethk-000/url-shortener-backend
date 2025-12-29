@@ -4,6 +4,7 @@ import "time"
 
 type User struct {
 	ID       uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name     string `gorm:"type:varchar(100);not null" json:"name"`
 	Email    string `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
 	Password string `gorm:"type:text;not null" json:"-"`
 	Urls     []Url  `gorm:"foreignKey:UserID" json:"urls,omitempty"`

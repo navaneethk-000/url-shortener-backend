@@ -21,53 +21,7 @@ type CreateUrlRequest struct {
 	CustomAlias string `json:"custom_alias"`
 }
 
-// Delete /api/shorten/:code
-func (h *UrlHandler) DeleteShortUrl(c *gin.Context) {
-	code := c.Param("code")
-
-	// Get UserID from middleware
-	userID, exists := c.Get("userID")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-
-	// Call Service
-	err := h.Service.DeleteShortLink(code, userID.(uint64))
-	if err != nil {
-		if err.Error() == "unauthorized: you do not own this link" {
-			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Deleted successfully"})
-}
-
-func (h *UrlHandler) GetUserUrls(c *gin.Context) {
-	userID, _ := c.Get("userID") // From Middleware
-	urls, err := h.Service.GetUserUrls(userID.(uint64))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch URLs"})
-		return
-	}
-	c.JSON(http.StatusOK, urls)
-}
-
-func (h *UrlHandler) GetQRCode(c *gin.Context) {
-	code := c.Param("code")
-
-	pngBytes, err := h.Service.GenerateQRCode(code)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "URL not found"})
-		return
-	}
-
-	c.Data(http.StatusOK, "image/png", pngBytes)
-}
-
+// CreateSortUrl handles POST /api/shorten
 func (h *UrlHandler) CreateShortUrl(c *gin.Context) {
 	var req CreateUrlRequest
 
@@ -130,4 +84,58 @@ func (h *UrlHandler) GetStats(c *gin.Context) {
 		"url_data":  url,
 		"analytics": clicks,
 	})
+}
+
+// DeleteShortUrl handles DELETE /api/shorten/:code
+func (h *UrlHandler) DeleteShortUrl(c *gin.Context) {
+	code := c.Param("code")
+
+	// Get UserID from middleware
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// Call Service
+	err := h.Service.DeleteShortLink(code, userID.(uint64))
+	if err != nil {
+		if err.Error() == "unauthorized: you do not own this link" {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Deleted successfully"})
+}
+
+// GetUserUrls handles GET /api/user/urls
+func (h *UrlHandler) GetUserUrls(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	urls, err := h.Service.GetUserUrls(userID.(uint64))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch URLs"})
+		return
+	}
+	c.JSON(http.StatusOK, urls)
+}
+
+// GetQRCode handles GET /api/qr/:code
+func (h *UrlHandler) GetQRCode(c *gin.Context) {
+	code := c.Param("code")
+
+	pngBytes, err := h.Service.GenerateQRCode(code)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "URL not found"})
+		return
+	}
+
+	c.Data(http.StatusOK, "image/png", pngBytes)
 }

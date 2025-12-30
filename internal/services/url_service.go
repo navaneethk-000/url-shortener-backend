@@ -9,6 +9,7 @@ import (
 	"github.com/navaneethk-000/url-shortener-backend/internal/base62"
 	"github.com/navaneethk-000/url-shortener-backend/internal/models"
 	"github.com/navaneethk-000/url-shortener-backend/internal/repository"
+
 	"github.com/skip2/go-qrcode"
 )
 
@@ -60,7 +61,7 @@ func (s *UrlService) GenerateQRCode(shortCode string) ([]byte, error) {
 	}
 	fullURL := fmt.Sprintf("%s/%s", baseUrl, shortCode)
 
-	// Generate QR code (256x256 pixels, Medium error correction)
+	// Generate QR code
 	png, err := qrcode.Encode(fullURL, qrcode.Medium, 256)
 	if err != nil {
 		return nil, err
@@ -69,7 +70,6 @@ func (s *UrlService) GenerateQRCode(shortCode string) ([]byte, error) {
 	return png, nil
 }
 
-// Factory
 func NewUrlService(uRepo *repository.UrlRepository, cRepo *repository.ClickRepository) *UrlService {
 	return &UrlService{
 		UrlRepo:   uRepo,
@@ -123,6 +123,7 @@ func (s *UrlService) Resolve(shortCode string, referrer string, userAgent string
 
 	// Async Analytics
 	go func() {
+		fmt.Println(" Resolve: Incrementing clicks...")
 		_ = s.UrlRepo.IncrementClicks(url.ID)
 		click := &models.Click{
 			UrlID:     url.ID,
@@ -130,7 +131,15 @@ func (s *UrlService) Resolve(shortCode string, referrer string, userAgent string
 			UserAgent: userAgent,
 			IPAddress: ip,
 		}
-		_ = s.ClickRepo.SaveClick(click)
+
+		// Log 2: Is the worker alive?
+		if WorkerInstance != nil {
+			fmt.Println("🔍 Resolve: Pushing to worker queue...")
+			WorkerInstance.Push(click)
+		} else {
+			fmt.Println("ERROR: WorkerInstance is NIL!")
+		}
+
 	}()
 
 	return url.OriginalURL, nil

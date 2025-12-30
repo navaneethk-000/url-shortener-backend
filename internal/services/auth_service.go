@@ -22,7 +22,7 @@ func NewAuthService(repo *repository.UserRepository, secret string) *AuthService
 	}
 }
 
-// Register creates a user with a hashed password
+// Creates a user with a hashed password
 func (s *AuthService) Register(name, email, password string) (*models.User, error) {
 	// Check if user exists
 	existing, _ := s.UserRepo.FindByEmail(email)

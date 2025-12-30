@@ -12,7 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// connects to DB and returns the repo + db instance
 func setupRepoTest() (*UrlRepository, *gorm.DB) {
 	_ = godotenv.Load("../../.env")
 
@@ -29,7 +28,7 @@ func setupRepoTest() (*UrlRepository, *gorm.DB) {
 	return NewUrlRepository(db), db
 }
 
-// creates a dummy user because URLs need a Foreign Key
+// Creates a dummy user because URLs need a Foreign Key
 func createTestUser(db *gorm.DB, email string) *models.User {
 	user := &models.User{Email: email, Password: "pw"}
 	// Force cleanup first

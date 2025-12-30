@@ -12,4 +12,6 @@ type Click struct {
 	IPAddress string `gorm:"type:varchar(45)" json:"ip_address"`
 
 	ClickedAt time.Time `gorm:"autoCreateTime" json:"clicked_at"`
+	Country   string    `gorm:"type:varchar(100)" json:"country"`
+	City      string    `gorm:"type:varchar(100)" json:"city"`
 }

@@ -35,6 +35,9 @@ func main() {
 	clickRepo := repository.NewClickRepository(db)
 	userRepo := repository.NewUserRepository(db)
 
+	// Buffer of 100, 5 Concurrent Routines
+	services.InitWorker(clickRepo, 100, 5)
+
 	// Service Layer (Injects Repos)
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {

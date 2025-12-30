@@ -15,9 +15,24 @@ func NewUrlRepository(db *gorm.DB) *UrlRepository {
 	return &UrlRepository{DB: db}
 }
 
-// Deletes  a URL record by ID
 func (r *UrlRepository) Delete(id uint64) error {
-	return r.DB.Unscoped().Delete(&models.Url{}, id).Error
+
+	tx := r.DB.Begin()
+
+	// Delete the Clicks first
+	if err := tx.Unscoped().Where("url_id = ?", id).Delete(&models.Click{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Then delete the URL
+	if err := tx.Unscoped().Delete(&models.Url{}, id).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Commit changes
+	return tx.Commit().Error
 }
 
 // Saves a new URL to the database

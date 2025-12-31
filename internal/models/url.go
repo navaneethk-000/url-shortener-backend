@@ -16,4 +16,7 @@ type Url struct {
 
 	UserID uint64 `gorm:"not null;index" json:"user_id"`
 	User   User   `gorm:"foreignKey:UserID" json:"-"`
+
+	QRColor   string `gorm:"type:varchar(7);default:'#000000'" json:"qr_color"`
+	QRBgColor string `gorm:"type:varchar(7);default:'#ffffff'" json:"qr_bg_color"`
 }

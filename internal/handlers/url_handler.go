@@ -19,6 +19,8 @@ func NewUrlHandler(s services.IUrlService) *UrlHandler {
 type CreateUrlRequest struct {
 	OriginalURL string `json:"original_url" binding:"required"`
 	CustomAlias string `json:"custom_alias"`
+	QRColor     string `json:"qr_color"`
+	QRBgColor   string `json:"qr_bg_color"`
 }
 
 // CreateSortUrl handles POST /api/shorten
@@ -39,7 +41,7 @@ func (h *UrlHandler) CreateShortUrl(c *gin.Context) {
 	}
 
 	// Call Service
-	url, err := h.Service.Shorten(req.OriginalURL, req.CustomAlias, userID.(uint64))
+	url, err := h.Service.Shorten(req.OriginalURL, req.CustomAlias, userID.(uint64), req.QRColor, req.QRBgColor)
 	if err != nil {
 		if err.Error() == "alias already in use" {
 			c.JSON(http.StatusConflict, gin.H{"error": "Alias already taken"})
@@ -50,6 +52,34 @@ func (h *UrlHandler) CreateShortUrl(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, url)
+}
+
+func (h *UrlHandler) UpdateURLStyles(c *gin.Context) {
+	code := c.Param("code")
+
+	var req struct {
+		QRColor   string `json:"qr_color" binding:"required"`
+		QRBgColor string `json:"qr_bg_color" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid colors provided"})
+		return
+	}
+
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	err := h.Service.UpdateStyles(code, userID.(uint64), req.QRColor, req.QRBgColor)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "QR Styles updated successfully"})
 }
 
 // Redirect handles GET /:code
@@ -131,7 +161,11 @@ func (h *UrlHandler) GetUserUrls(c *gin.Context) {
 func (h *UrlHandler) GetQRCode(c *gin.Context) {
 	code := c.Param("code")
 
-	pngBytes, err := h.Service.GenerateQRCode(code)
+	// Get Query Params
+	fg := c.Query("fg")
+	bg := c.Query("bg")
+
+	pngBytes, err := h.Service.GenerateQRCode(code, fg, bg)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "URL not found"})
 		return

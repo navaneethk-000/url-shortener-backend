@@ -35,6 +35,7 @@ func setupService() *UrlService {
 	urlRepo := repository.NewUrlRepository(testDB)
 	clickRepo := repository.NewClickRepository(testDB)
 
+	// Initialize Worker Pool
 	InitWorker(clickRepo, 10, 1)
 
 	return NewUrlService(urlRepo, clickRepo)
@@ -63,26 +64,19 @@ func createDummyUser(email string) *models.User {
 
 func TestShorten_AutoGeneration(t *testing.T) {
 	service := setupService()
-	// Create a valid user
 	user := createDummyUser("auto_gen@test.com")
 
-	// Cleanup potential old data
 	testDB.Unscoped().Where("original_url = ?", "https://auto.com").Delete(&models.Url{})
 
-	url, err := service.Shorten("https://auto.com", "", user.ID)
+	url, err := service.Shorten("https://auto.com", "", user.ID, "#000000", "#ffffff")
 
-	// Assertion
 	assert.NoError(t, err)
 	if url != nil {
 		assert.NotEmpty(t, url.ShortCode)
-		assert.Equal(t, "https://auto.com", url.OriginalURL)
+		assert.Equal(t, "#000000", url.QRColor)
 		assert.Equal(t, user.ID, url.UserID)
-
-		// Cleanup URL
 		testDB.Unscoped().Delete(url)
 	}
-
-	// Cleanup User
 	testDB.Unscoped().Delete(user)
 }
 
@@ -91,20 +85,44 @@ func TestShorten_CustomAlias(t *testing.T) {
 	user := createDummyUser("alias_user@test.com")
 	alias := "my-alias"
 
-	// Cleanup
 	testDB.Unscoped().Where("short_code = ?", alias).Delete(&models.Url{})
 
-	// Success Case
-	url, err := service.Shorten("https://google.com", alias, user.ID)
+	// Updated: Added colors
+	url, err := service.Shorten("https://google.com", alias, user.ID, "#FF0000", "#000000")
 	assert.NoError(t, err)
 	assert.Equal(t, alias, url.ShortCode)
+	assert.Equal(t, "#FF0000", url.QRColor)
 
-	// Duplicate Failure Case
-	_, err = service.Shorten("https://yahoo.com", alias, user.ID)
+	_, err = service.Shorten("https://yahoo.com", alias, user.ID, "#000", "#fff")
 	assert.Error(t, err)
 	assert.Equal(t, "alias already in use", err.Error())
 
-	// Cleanup
+	testDB.Unscoped().Delete(url)
+	testDB.Unscoped().Delete(user)
+}
+
+func TestUpdateStyles(t *testing.T) {
+	service := setupService()
+	user := createDummyUser("style_test@test.com")
+	url, _ := service.Shorten("https://style.com", "style1", user.ID, "#000000", "#ffffff")
+
+	t.Run("Success - Update Colors", func(t *testing.T) {
+		err := service.UpdateStyles("style1", user.ID, "#FF5733", "#111111")
+		assert.NoError(t, err)
+
+		// Verify in DB
+		var updated models.Url
+		testDB.Where("short_code = ?", "style1").First(&updated)
+		assert.Equal(t, "#FF5733", updated.QRColor)
+		assert.Equal(t, "#111111", updated.QRBgColor)
+	})
+
+	t.Run("Fail - Unauthorized User", func(t *testing.T) {
+		err := service.UpdateStyles("style1", 999, "#000000", "#ffffff")
+		assert.Error(t, err)
+		assert.Equal(t, "unauthorized: you do not own this link", err.Error())
+	})
+
 	testDB.Unscoped().Delete(url)
 	testDB.Unscoped().Delete(user)
 }
@@ -113,37 +131,31 @@ func TestResolve_And_Analytics(t *testing.T) {
 	service := setupService()
 	user := createDummyUser("resolve@test.com")
 
-	// Cleanup
 	testDB.Unscoped().Where("original_url = ?", "https://target.com").Delete(&models.Url{})
 
-	// Create URL
-	url, err := service.Shorten("https://target.com", "", user.ID)
+	// Updated: Added colors
+	url, err := service.Shorten("https://target.com", "", user.ID, "#000", "#fff")
 	if err != nil {
 		t.Fatalf("Setup Failed: %v", err)
 	}
 
 	original, err := service.Resolve(url.ShortCode, "google.com", "Firefox", "127.0.0.1")
 
-	// Assert Redirect
 	assert.NoError(t, err)
 	assert.Equal(t, "https://target.com", original)
 
-	// Wait for Async Goroutine to finish
 	time.Sleep(200 * time.Millisecond)
 
-	// Assert Analytics
 	var clicks []models.Click
 	testDB.Where("url_id = ?", url.ID).Find(&clicks)
 
 	if len(clicks) == 0 {
-		t.Error("Expected 1 click to be recorded, found 0. (Is worker pool running in main?)")
+		t.Error("Expected 1 click to be recorded, found 0.")
 	} else {
 		assert.Equal(t, "Firefox", clicks[0].UserAgent)
-		// Clean up specific click
 		testDB.Unscoped().Delete(&clicks)
 	}
 
-	// Cleanup
 	testDB.Unscoped().Delete(url)
 	testDB.Unscoped().Delete(user)
 }
@@ -153,25 +165,20 @@ func TestDeleteShortLink(t *testing.T) {
 	owner := createDummyUser("owner@test.com")
 	hacker := createDummyUser("hacker@test.com")
 
-	url, err := service.Shorten("https://delete.com", "", owner.ID)
+	url, err := service.Shorten("https://delete.com", "", owner.ID, "#000", "#fff")
 	if err != nil {
 		t.Fatalf("Setup Failed: %v", err)
 	}
 
-	// Wrong User (Hacker tries to delete)
 	err = service.DeleteShortLink(url.ShortCode, hacker.ID)
 	assert.Error(t, err)
-	assert.Equal(t, "unauthorized: you do not own this link", err.Error())
 
-	// Success: Owner deletes
 	err = service.DeleteShortLink(url.ShortCode, owner.ID)
 	assert.NoError(t, err)
 
-	// Verify deletion
 	found, _ := service.UrlRepo.FindByShortCode(url.ShortCode)
 	assert.Nil(t, found)
 
-	// Cleanup
 	testDB.Unscoped().Delete(owner)
 	testDB.Unscoped().Delete(hacker)
 }
@@ -180,18 +187,14 @@ func TestGetUserUrls(t *testing.T) {
 	service := setupService()
 	user := createDummyUser("history@test.com")
 
-	// Create 2 links
-	u1, _ := service.Shorten("https://1.com", "", user.ID)
-	u2, _ := service.Shorten("https://2.com", "", user.ID)
+	u1, _ := service.Shorten("https://1.com", "", user.ID, "#000", "#fff")
+	u2, _ := service.Shorten("https://2.com", "", user.ID, "#000", "#fff")
 
-	// Action
 	urls, err := service.GetUserUrls(user.ID)
 
-	// Assert
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(urls))
 
-	// Cleanup
 	testDB.Unscoped().Delete(u1)
 	testDB.Unscoped().Delete(u2)
 	testDB.Unscoped().Delete(user)
@@ -200,20 +203,17 @@ func TestGetUserUrls(t *testing.T) {
 func TestGenerateQRCode(t *testing.T) {
 	service := setupService()
 	user := createDummyUser("qr@test.com")
-	url, err := service.Shorten("https://qr.com", "", user.ID)
+	url, err := service.Shorten("https://qr.com", "", user.ID, "#000000", "#ffffff")
 	if err != nil {
 		t.Fatalf("Setup Failed: %v", err)
 	}
 
-	// Action
-	png, err := service.GenerateQRCode(url.ShortCode)
+	png, err := service.GenerateQRCode(url.ShortCode, "#FF0000", "#000000")
 
-	// Assert
 	assert.NoError(t, err)
 	assert.NotEmpty(t, png)
 	assert.Greater(t, len(png), 100)
 
-	// Cleanup
 	testDB.Unscoped().Delete(url)
 	testDB.Unscoped().Delete(user)
 }

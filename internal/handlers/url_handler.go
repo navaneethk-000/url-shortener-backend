@@ -171,5 +171,9 @@ func (h *UrlHandler) GetQRCode(c *gin.Context) {
 		return
 	}
 
+	if c.Query("download") == "true" {
+		c.Header("Content-Disposition", "attachment; filename=qrcode_"+code+".png")
+	}
+
 	c.Data(http.StatusOK, "image/png", pngBytes)
 }
